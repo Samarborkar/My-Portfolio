@@ -2,25 +2,50 @@
 
 import nodemailer from 'nodemailer';
 
+const getRequiredEnv = (name: string): string => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+  return value;
+};
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 async function sendEmail(fullname: string, email: string, message: string) {
   try {
+    const mailPort = Number(getRequiredEnv('NODEMAILER_PORT'));
+    if (Number.isNaN(mailPort)) {
+      throw new Error('NODEMAILER_PORT must be a valid number');
+    }
+
+    const safeFullname = escapeHtml(fullname);
+    const safeEmail = escapeHtml(email);
+    const safeMessage = escapeHtml(message);
+
     const transporter = nodemailer.createTransport({
-      host: process.env.NODEMAILER_HOST,
-      port: parseInt(process.env.NODEMAILER_PORT!),
+      host: getRequiredEnv('NODEMAILER_HOST'),
+      port: mailPort,
       auth: {
-        user: process.env.NODEMAILER_USER,
-        pass: process.env.NODEMAILER_PASS,
+        user: getRequiredEnv('NODEMAILER_USER'),
+        pass: getRequiredEnv('NODEMAILER_PASS'),
       },
     });
 
     const mailOptions = {
-      from: process.env.USER_MAILER,
-      to: process.env.USER_TO,
-      subject: `${fullname} sent you a message`,
+      from: getRequiredEnv('USER_MAILER'),
+      to: getRequiredEnv('USER_TO'),
+      subject: `${safeFullname} sent you a message`,
       html: `
-      <h1>Message from ${fullname}</h1>
-      <p>Email: ${email}</p>
-      <p>${message}</p>
+      <h1>Message from ${safeFullname}</h1>
+      <p>Email: ${safeEmail}</p>
+      <p>${safeMessage}</p>
       `,
     };
 
@@ -71,7 +96,6 @@ export async function sendMessageServerAction(
   // If validation passes, try to send email
   try {
     const response = await sendEmail(fullname, email, message);
-    console.log('Response: ', response);
     if (response.success) {
       return {
         success: "Message sent successfully, I'll get back to you soon. 🤖",

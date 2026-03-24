@@ -1,0 +1,5 @@
+[allowlist]
+description = "Allowed placeholders in example env docs"
+paths = [
+  '''\.env\.example$'''
+]
